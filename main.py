@@ -1,7 +1,7 @@
 import json, sys
 import quest as Qst
 from datetime import date
-
+import interfaceapi as ia
 
 def status_points(quest):
     status = quest.getStatus()
@@ -124,6 +124,74 @@ def list_quests(args):
             daily_text = ' '
         print(' '*(5 - len(str(quest.getId()))) + f'{quest.getId()}.{daily_text}\t{quest.getName()}\tSTATUS: {quest.getStatus()}\tPRIORITY: {quest.getPriority()}\tEnd: {date_list_to_str(quest.getLimitDate())}')
 
+
+def pretty_list_quests(args):  
+    show = {'completed': False,
+            'expired': False,
+            'archived': False,
+            'all': False}
+    if args.count('--status') > 0:
+        quest_list.sort(key=status_points)
+    elif args.count('--priority') > 0:
+        quest_list.sort(key=get_priority)
+        quest_list.reverse()
+    elif args.count('--id') > 0:
+        quest_list.sort(key=get_id)
+    if args.count('--show-completed') > 0:
+        show['completed'] = True
+    if args.count('--show-expired') > 0:
+        show['expired'] = True
+    if args.count('--show-archived') > 0:
+        show['archived'] = True
+    if args.count('--show-all') > 0:
+        show['all'] = True
+        
+    # Animação do quest board (start)
+    tela = ia.Tela()
+    tela.framerate = 16
+    largura = 85
+    altura = 70
+    board = ia.Polygon(ia.Point(), ia.Point(largura, 0), ia.Point(largura, altura), ia.Point(0,
+        altura))
+    tela.addObject(board)
+    duration = 1
+    for frame in range(tela.framerate*duration):
+        board.translateToPoint(ia.Point(tela.center().x, (tela.getHeight()+altura)
+            -(tela.center().y+altura) * (frame+1)/tela.framerate*duration))
+        tela.update_print()
+    tela.addObject(ia.Text("QUEST BOARD", tela.center()-ia.Point(5, altura/2-2)))
+    tela.update_print()
+    # Animação do quest board (end)
+
+    i = 0
+    for quest in quest_list:
+        if not show['all']:
+            if quest.getStatus() == Qst.FINISHED and not show['completed']:
+                continue
+            if quest.getStatus() == Qst.EXPIRED and not show['expired']:
+                continue
+            if quest.getStatus() == Qst.ARCHIVED and not show['archived']:
+               continue
+
+        if quest.isDaily():
+            daily_text = '*'
+        else:
+            daily_text = ' '
+
+        text = ' '*(2 - len(str(quest.getId()))) + f'{quest.getId()}.{daily_text}\t{quest.getName()}\tSTATUS: {quest.getStatus()}\tPRIORITY: {quest.getPriority()}\tEnd: {date_list_to_str(quest.getLimitDate())}'  
+        # Animação do quest board (begin)
+        x_offset = 1
+        y_offset = 4
+        line = [ia.Text(f'{quest.getId()}.{daily_text}{quest.getName()}', ia.Point(3-len(str(quest.getId())) + board.points[0].x + x_offset, 2*(i+y_offset) + board.points[0].y)),
+                ia.Text(f'STATUS: {quest.getStatus()}', ia.Point(30 + board.points[0].x + x_offset, 2*(i+y_offset) + board.points[0].y)),
+                ia.Text(f'PRIORITY: {quest.getPriority()}', ia.Point(55 + board.points[0].x + x_offset, 2*(i+y_offset) + board.points[0].y)),
+                ia.Text(f'End: {date_list_to_str(quest.getLimitDate())}', ia.Point(70 + board.points[0].x + x_offset, 2*(i+y_offset) + board.points[0].y))
+               ]
+
+        tela.addObject(line) 
+        tela.update_print()
+        # Animação do quest board (end)
+        i += 1
 
 def del_quest(search_word, mode):
     if mode == 'name':
@@ -272,6 +340,10 @@ def main(argv):
                 if quest.getId() == int(argv[i+1]):
                     unrest_daily(quest)
                     break
+        elif argv[i] == '-pl':
+            pretty_list_quests(argv)
+    if len(argv) == 1:
+        pretty_list_quests(argv)
     save_quests(PATH)
 
 
